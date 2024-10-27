@@ -104,7 +104,11 @@ class Account(StripeModel):
     def default_api_key(self) -> str:
         return self.get_default_api_key()
 
-    def get_default_api_key(self, livemode: bool = None) -> str:
+    @property
+    def default_public_key(self) -> str:
+        return self.get_default_public_key()
+
+    def get_default_api_key(self, livemode: bool | None = None) -> str:
         if livemode is None:
             livemode = self.livemode
             api_key = APIKey.objects.filter(
@@ -118,6 +122,23 @@ class Account(StripeModel):
         if api_key:
             return api_key.secret
         return djstripe_settings.get_default_api_key(livemode)
+
+    def get_default_public_key(self, livemode: bool | None = None) -> str:
+        if livemode is None:
+            api_key = APIKey.objects.filter(
+                djstripe_owner_account=self, type=APIKeyType.publishable
+            ).first()
+        else:
+            api_key = APIKey.objects.filter(
+                djstripe_owner_account=self,
+                type=APIKeyType.publishable,
+                livemode=livemode,
+            ).first()
+
+        if api_key:
+            return api_key.secret
+        else:
+            raise ValueError("No publishable key found for this account")
 
     @property
     def business_url(self) -> str:
